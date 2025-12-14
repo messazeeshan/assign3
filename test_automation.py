@@ -25,16 +25,17 @@ class WebAppTest(unittest.TestCase):
 
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         self.base_url = "https://www.saucedemo.com/"
-        # Increased wait time for slower EC2 instances
-        self.driver.implicitly_wait(10) 
+        # Increase implicit wait to 20 seconds for slow EC2
+        self.driver.implicitly_wait(20) 
 
     def tearDown(self):
         if self.driver:
             self.driver.quit()
 
-    # --- HELPER: FORCE CLICK (The Docker Fix) ---
+    # --- HELPER: FORCE CLICK (Updated with 20s Timeout) ---
     def force_click(self, by, value):
-        wait = WebDriverWait(self.driver, 10)
+        # Increased wait to 20 seconds because t3.micro is slow
+        wait = WebDriverWait(self.driver, 20)
         element = wait.until(EC.presence_of_element_located((by, value)))
         self.driver.execute_script("arguments[0].click();", element)
 
@@ -57,7 +58,6 @@ class WebAppTest(unittest.TestCase):
 
     def test_03_add_to_cart(self):
         self._login()
-        # Use force_click
         self.force_click(By.ID, "add-to-cart-sauce-labs-backpack")
         cart_badge = self.driver.find_element(By.CLASS_NAME, "shopping_cart_badge").text
         self.assertEqual(cart_badge, "1")
@@ -98,11 +98,16 @@ class WebAppTest(unittest.TestCase):
         self.driver.find_element(By.ID, "last-name").send_keys("User")
         self.driver.find_element(By.ID, "postal-code").send_keys("12345")
         
+        # Give the form a second to register the inputs
+        time.sleep(1)
+        
         self.force_click(By.ID, "continue")
+        
+        # Give the page a second to load before finding 'Finish'
+        time.sleep(2)
         self.force_click(By.ID, "finish")
         
-        # Explicit wait for success message
-        wait = WebDriverWait(self.driver, 10)
+        wait = WebDriverWait(self.driver, 20)
         success_msg_element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "complete-header")))
         self.assertIn("Thank you for your order", success_msg_element.text)
 
@@ -119,8 +124,7 @@ class WebAppTest(unittest.TestCase):
         self._login()
         self.force_click(By.ID, "react-burger-menu-btn")
         
-        # Wait for menu to exist, then force click logout
-        wait = WebDriverWait(self.driver, 10)
+        wait = WebDriverWait(self.driver, 20)
         logout_link = wait.until(EC.presence_of_element_located((By.ID, "logout_sidebar_link")))
         self.driver.execute_script("arguments[0].click();", logout_link)
         
